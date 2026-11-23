@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import InfoTip from '../components/InfoTip'
 import { useData } from '../lib/data'
 import { huf } from '../lib/format'
 import { loadHufRates } from '../lib/fx'
+import { suggestCategory } from '../lib/autoCategory'
 import { learnedCategories, suggestTransferPairs, withHashes } from '../lib/importLogic'
 import { detectPdf, detectTable, guessMapping, headerSignature, PROVIDER_LABEL, type Provider } from '../lib/parsers/detect'
 import { parseGeneric, type DateFormat, type MappingConfig } from '../lib/parsers/generic'
@@ -58,9 +61,12 @@ export default function Import() {
     <>
       <h1>Import</h1>
       <div className="card">
-        <label>Kivonat (OTP PDF, Revolut Excel, Lightyear CSV vagy bármilyen CSV / Excel)
+        <label className="file-pick">
           <input key={file ? 'f' : 'empty'} type="file" onChange={e => choose(e.target.files?.[0] ?? null)} />
+          <span className="button primary">{file ? 'Másik kivonat kiválasztása' : 'Kivonat kiválasztása'}</span>
+          {file && <span className="small muted">{file.name}</span>}
         </label>
+        <p className="small muted">OTP, Revolut és Lightyear kivonatot (PDF, Excel vagy CSV) magától felismerek. Más bank CSV vagy Excel exportjánál egyszer meg kell mutatni, melyik oszlop mi.</p>
         {busy && <p className="muted">Feldolgozás…</p>}
         {detected && <p>Felismerve: <b>{PROVIDER_LABEL[detected.provider]}</b></p>}
         {error && <p className="error">{error}</p>}
@@ -87,7 +93,7 @@ function BankImport({ result, fileName, done }: { result: ParseResult; fileName:
     try {
       const batch = must(await supabase.from('import_batches').insert({ source: result.source, file_name: fileName }).select().single()) as { id: string }
       const learned = learnedCategories(txs)
-      const investCat = categories.find(c => c.kind === 'investment')?.id ?? null
+      const byName = new Map(categories.map(c => [c.name, c.id]))
       const checks: { accountId: string; s: ParsedSection }[] = []
       for (const [i, s] of result.sections.entries()) {
         let accountId = targets[i]
@@ -105,16 +111,17 @@ function BankImport({ result, fileName, done }: { result: ParseResult; fileName:
           account_id: accountId, date: r.date, amount: r.amount, description: r.description, counterparty: r.counterparty,
           orig_amount: r.origAmount ?? null, orig_currency: r.origCurrency ?? null, import_hash: r.import_hash,
           import_batch_id: batch.id,
-          category_id: learned.get(r.counterparty) ?? (r.counterparty === 'lightyear' ? investCat : null),
+          category_id: suggestCategory(r, learned, byName),
         }))
-        let inserted = 0
+        let inserted = 0, categorized = 0
         for (let k = 0; k < rows.length; k += 500) {
           const res = must(await supabase.from('transactions')
-            .upsert(rows.slice(k, k + 500), { onConflict: 'user_id,import_hash', ignoreDuplicates: true }).select('id')) as unknown[]
+            .upsert(rows.slice(k, k + 500), { onConflict: 'user_id,import_hash', ignoreDuplicates: true }).select('id, category_id')) as { category_id: string | null }[]
           inserted += res.length
+          categorized += res.filter(r => r.category_id).length
         }
-        const categorized = rows.filter(r => r.category_id).length
-        lines.push(`${s.key}: ${inserted} új tétel, ${rows.length - inserted} duplikátum kihagyva, ${categorized} automatikusan kategorizálva.`)
+        lines.push(`${s.key}: ${inserted} új tétel` + (inserted ? ` (ebből ${categorized} automatikusan kategóriába sorolva)` : '') +
+          (rows.length - inserted ? `, ${rows.length - inserted} már korábban importálva, kihagyva` : '') + '.')
         checks.push({ accountId, s })
       }
       await reload()
@@ -138,7 +145,10 @@ function BankImport({ result, fileName, done }: { result: ParseResult; fileName:
     <div className="card">
       <h2>Import kész</h2>
       {report.map((l, i) => <p key={i} className={l.startsWith('⚠') || l.startsWith('Hiba') ? 'warn' : ''}>{l}</p>)}
-      <button onClick={done}>Rendben</button>
+      <div className="row">
+        <button onClick={done}>Rendben</button>
+        {txs.some(t => !t.category_id && !t.is_transfer) && <Link className="button primary" to="/categorize">Maradék tételek rendezése</Link>}
+      </div>
     </div>
   )
 
@@ -331,7 +341,7 @@ function TransferSuggestions() {
 
   return (
     <div className="card">
-      <h2>Átvezetés-javaslatok ({pairs.length})</h2>
+      <h2>Átvezetés-javaslatok ({pairs.length})<InfoTip>Ha pénzt teszel át egyik saját számládról a másikra (pl. OTP → Revolut), az mindkét kivonatban megjelenik. Ha jóváhagyod, nem számolom bevételnek és kiadásnak – különben duplán torzítaná a kimutatásokat.</InfoTip></h2>
       <p className="muted small">Azonos összeg két saját számla között, ±2 napon belül. Jóváhagyás után nem számít bevételnek/kiadásnak.</p>
       <div className="list">
         {pairs.map(([a, b]) => {

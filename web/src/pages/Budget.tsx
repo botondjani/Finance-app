@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useData } from '../lib/data'
-import { currentMonth, huf, monthEnd, monthStart } from '../lib/format'
+import InfoTip from '../components/InfoTip'
+import { addMonths, currentMonth, huf, monthEnd, monthLabel, monthStart } from '../lib/format'
 import { budgetFor, expenseByCategory } from '../lib/stats'
 import { must, supabase } from '../lib/supabase'
 
@@ -34,10 +35,17 @@ export default function Budget() {
   return (
     <>
       <h1>Havi budget</h1>
-      <div className="card row">
-        <label>Hónap<input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} /></label>
-        <span className="muted">Keretes kategóriák: {huf(totalSpent)} / {huf(totalBudget)}</span>
+      <p className="muted small">Adj meg kategóriánként egy havi költési keretet, és látod, mennyi maradt belőle. Az üresen hagyott kategóriának nincs kerete.
+        <InfoTip><b>Alap keret:</b> minden hónapra érvényes. <b>Csak ebben a hónapban:</b> erre az egy hónapra felülírja az alapot (pl. decemberben több jut ajándékra) – hagyd üresen, ha az alap jó.</InfoTip></p>
+      <div className="month-nav">
+        <button aria-label="Előző hónap" onClick={() => setMonth(addMonths(month, -1))}>‹</button>
+        <span>{monthLabel(month)}</span>
+        <button aria-label="Következő hónap" onClick={() => setMonth(addMonths(month, 1))}>›</button>
       </div>
+      {totalBudget > 0 && <div className="card">
+        <div className="line"><b>Összesen</b><span>{huf(totalSpent)} / {huf(totalBudget)}</span></div>
+        <div className={`bar ${totalSpent > totalBudget ? 'over' : ''}`}><div style={{ width: `${Math.min(100, totalSpent / totalBudget * 100)}%` }} /></div>
+      </div>}
       <div className="card list">
         {rows.map(({ c, limit, s }) => {
           const def = budgets.find(b => b.category_id === c.id && b.month === null)

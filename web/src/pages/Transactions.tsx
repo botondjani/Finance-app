@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import CategorySelect from '../components/CategorySelect'
 import { useData } from '../lib/data'
 import { huf, todayIso } from '../lib/format'
@@ -41,6 +42,9 @@ export default function Transactions() {
   return (
     <>
       <h1>Tranzakciók</h1>
+      {txs.some(t => !t.category_id && !t.is_transfer) && (
+        <p className="warn small">{txs.filter(t => !t.category_id && !t.is_transfer).length} tételnek nincs kategóriája – <Link to="/categorize">rendezd őket egyszerre</Link>.</p>
+      )}
       <div className="card">
         <input type="search" placeholder="Keresés…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} style={{ width: '100%' }} />
         <details style={{ marginTop: 8 }}>

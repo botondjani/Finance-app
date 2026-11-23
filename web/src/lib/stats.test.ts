@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountBalances, budgetFor, detectRecurring, expenseByCategory, goalProgress, monthSummary, netWorthSeries, portfolioValue } from './stats'
+import { accountBalances, budgetFor, goalCurrent, detectRecurring, expenseByCategory, goalProgress, monthSummary, netWorthSeries, portfolioValue } from './stats'
 import type { Account, Category, Tx } from './types'
 
 const cats = new Map<string, Category>([
@@ -66,6 +66,19 @@ describe('goalProgress', () => {
   it('computes percentage and required monthly saving', () => {
     expect(goalProgress(1000, 250, '2027-02-01', '2026-11-23')).toEqual({ pct: 25, remaining: 750, monthly: 250 })
     expect(goalProgress(1000, 1500, null, '2026-11-23')).toEqual({ pct: 100, remaining: 0, monthly: null })
+  })
+})
+
+describe('goalCurrent', () => {
+  const v = [
+    { id: '1', asset_id: 'ly', date: '2026-11-01', value: 1000, invested: null },
+    { id: '2', asset_id: 'bond', date: '2026-11-01', value: 500, invested: null },
+  ]
+  const g = (p: object) => ({ id: 'g', name: 'x', target_amount: 1, deadline: null, kind: 'savings' as const, account_id: null, asset_id: null, ...p })
+  it('uses account balance, one asset, or the whole portfolio', () => {
+    expect(goalCurrent(g({ account_id: 'a' }), new Map([['a', 250]]), v, '2026-11-23')).toBe(250)
+    expect(goalCurrent(g({ kind: 'investment', asset_id: 'ly' }), new Map(), v, '2026-11-23')).toBe(1000)
+    expect(goalCurrent(g({ kind: 'investment' }), new Map(), v, '2026-11-23')).toBe(1500)
   })
 })
 

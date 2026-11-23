@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import InfoTip from '../components/InfoTip'
 import { useData } from '../lib/data'
 import { huf, todayIso } from '../lib/format'
 import { netDeposits, positionsFrom, type LightyearRow } from '../lib/parsers/lightyear'
@@ -24,11 +25,12 @@ export default function Investments() {
   return (
     <>
       <h1>Befektetések</h1>
+      <p className="muted small">Itt követed a befektetéseid értékét. A Lightyear kivonatból az értéket automatikusan rögzítem; más eszköznél (állampapír, kripto, nyugdíjpénztár) időnként írd be az aktuális értéket.</p>
       <div className="kpis">
-        <div className="kpi"><div className="label">Portfólió értéke</div><div className="value">{huf(total.value)}</div></div>
+        <div className="kpi"><div className="label">Portfólió értéke<InfoTip>Az összes befektetésed legutóbb rögzített értéke forintban.</InfoTip></div><div className="value">{huf(total.value)}</div></div>
         {total.invested !== null && <>
-          <div className="kpi"><div className="label">Befektetett tőke</div><div className="value">{huf(total.invested)}</div></div>
-          <div className="kpi"><div className="label">Eredmény</div>
+          <div className="kpi"><div className="label">Befektetett tőke<InfoTip>Mennyi saját pénzt tettél be összesen (befizetések mínusz kivétek).</InfoTip></div><div className="value">{huf(total.invested)}</div></div>
+          <div className="kpi"><div className="label">Eredmény<InfoTip>Érték mínusz befektetett tőke: ennyit nyertél vagy vesztettél. Csak akkor pontos, ha minden befizetésed rögzítve van.</InfoTip></div>
             <div className={`value ${total.value >= total.invested ? 'pos' : 'neg'}`}>{huf(total.value - total.invested)}</div></div>
         </>}
       </div>

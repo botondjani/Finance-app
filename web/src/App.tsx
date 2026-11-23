@@ -12,6 +12,8 @@ import Budget from './pages/Budget'
 import Goals from './pages/Goals'
 import Investments from './pages/Investments'
 import Recurring from './pages/Recurring'
+import Categorize from './pages/Categorize'
+import Help from './pages/Help'
 
 const Import = lazy(() => import('./pages/Import'))
 
@@ -29,8 +31,8 @@ const Icon = ({ d }: { d: string }) => (
 
 const NAV = [
   ['/', 'Áttekintés'], ['/transactions', 'Tranzakciók'], ['/import', 'Import'], ['/budget', 'Budget'],
-  ['/goals', 'Célok'], ['/investments', 'Befektetések'], ['/recurring', 'Ismétlődő'],
-  ['/accounts', 'Számlák'], ['/categories', 'Kategóriák'],
+  ['/goals', 'Célok'], ['/investments', 'Befektetések'], ['/categorize', 'Rendezés'], ['/recurring', 'Ismétlődő'],
+  ['/accounts', 'Számlák'], ['/categories', 'Kategóriák'], ['/help', 'Súgó'],
 ] as const
 
 function Nav() {
@@ -90,6 +92,8 @@ export default function App() {
           <Route path="/recurring" element={<Recurring />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/categories" element={<Categories />} />
+          <Route path="/categorize" element={<Categorize />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </main>
     </DataProvider>

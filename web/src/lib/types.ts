@@ -10,7 +10,11 @@ export interface Tx {
   orig_amount: number | null; orig_currency: string | null; import_batch_id: string | null
 }
 export interface Budget { id: string; category_id: string; month: string | null; amount: number }
-export interface Goal { id: string; name: string; target_amount: number; account_id: string; deadline: string | null }
+export type GoalKind = 'savings' | 'investment'
+export interface Goal {
+  id: string; name: string; target_amount: number; deadline: string | null
+  kind: GoalKind; account_id: string | null; asset_id: string | null   // investment + no asset = whole portfolio
+}
 export interface Asset { id: string; name: string; type: AssetType; source: 'manual' | 'lightyear' }
 export interface Valuation { id: string; asset_id: string; date: string; value: number; invested: number | null }
 

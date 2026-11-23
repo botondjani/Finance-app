@@ -1,4 +1,4 @@
-import type { Account, Budget, Category, Tx, Valuation } from './types'
+import type { Account, Budget, Category, Goal, Tx, Valuation } from './types'
 import { addMonths, monthEnd, monthKey, monthStart } from './format'
 
 export interface MonthSummary { income: number; expense: number; invested: number; savings: number }
@@ -72,6 +72,12 @@ export function netWorthSeries(accounts: Account[], txs: Tx[], valuations: Valua
     out.push({ month: m, cash, investments, total: cash + investments })
   }
   return out
+}
+
+/** Current amount towards a goal: account balance (savings) or asset / whole-portfolio value (investment). */
+export function goalCurrent(g: Goal, balances: Map<string, number>, valuations: Valuation[], today: string): number {
+  if (g.kind === 'savings') return g.account_id ? balances.get(g.account_id) ?? 0 : 0
+  return portfolioValue(g.asset_id ? valuations.filter(v => v.asset_id === g.asset_id) : valuations, today).value
 }
 
 export function goalProgress(target: number, balance: number, deadline: string | null, today: string) {

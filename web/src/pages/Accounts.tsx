@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import InfoTip from '../components/InfoTip'
 import { useData } from '../lib/data'
 import { huf } from '../lib/format'
 import { accountBalances } from '../lib/stats'
@@ -31,6 +32,7 @@ export default function Accounts() {
   return (
     <>
       <h1>Számlák</h1>
+      <p className="muted small">Importnál a számlák automatikusan létrejönnek. Kézzel akkor adj hozzá számlát, ha nincs róla kivonat (pl. készpénz).</p>
       <div className="card list">
         {accounts.map(a => (
           <div key={a.id} className={`list-item ${a.archived ? 'muted' : ''}`}>
@@ -45,7 +47,7 @@ export default function Accounts() {
                 <label>Típus<select value={a.kind} onChange={e => update(a, { kind: e.target.value as AccountKind })}>
                   {Object.entries(ACCOUNT_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select></label>
-                <label>Nyitóegyenleg<input type="number" step="0.01" defaultValue={a.opening_balance}
+                <label><span>Nyitóegyenleg<InfoTip>A számla egyenlege az első rögzített tétel előtt. Ebből és a tételekből számolom a mai egyenleget.</InfoTip></span><input type="number" step="0.01" defaultValue={a.opening_balance}
                   onBlur={e => Number(e.target.value) !== Number(a.opening_balance) && update(a, { opening_balance: Number(e.target.value) })} /></label>
               </div>
               <div className="row" style={{ marginTop: 8 }}>

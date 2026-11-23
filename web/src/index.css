@@ -95,3 +95,41 @@ input[type=checkbox] { width: auto !important; min-height: 0 !important; }
 .inline-inputs { display: flex; gap: 8px; flex-wrap: wrap; }
 .inline-inputs label { flex: 1 1 120px; }
 .inline-inputs input, .inline-inputs select { width: 100%; }
+a.button { display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+  text-decoration: none; color: var(--text); background: var(--card); min-height: 40px; }
+a.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---------- Info tips ---------- */
+.infotip { display: inline; font-weight: 400; }
+.infotip-btn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; min-height: 0 !important;
+  padding: 0; margin-left: 6px; border-radius: 50%; font-size: 12px !important; font-weight: 600; font-style: italic;
+  color: var(--accent); border: 1px solid var(--accent); background: transparent; vertical-align: middle; }
+.infotip-text { display: block; margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border);
+  font-size: .85rem; color: var(--text); line-height: 1.45; font-weight: 400; }
+ul.small { margin: 4px 0 12px; padding-left: 20px; }
+.segmented { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+.segmented button { flex: 1; border: none; border-radius: 0; background: var(--card); color: var(--muted); padding: 8px; }
+.segmented button.active { background: var(--accent); color: #fff; }
+ol.steps { padding-left: 20px; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.glossary { margin: 0; }
+.glossary > div { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.glossary > div:last-child { border-bottom: none; }
+.glossary dt { font-weight: 600; }
+.glossary dd { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
+.checklist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.checklist li { display: flex; gap: 8px; align-items: baseline; }
+.checklist .done { color: var(--good); }
+.checklist .todo { color: var(--muted); }
+.month-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 0 12px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+.month-nav span { font-weight: 600; text-transform: capitalize; }
+.month-nav button { border: none; background: none; font-size: 1.4rem; width: 44px; min-height: 40px; color: var(--accent); }
+.month-nav button:disabled { color: var(--muted); }
+
+.card > .line { display: flex; justify-content: space-between; margin-bottom: 6px; }
+
+.file-pick { flex-direction: column; align-items: stretch; }
+.file-pick input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file-pick .button { font-size: 1rem; padding: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; min-height: 48px; background: var(--accent); color: #fff; }
+.file-pick:focus-within .button { outline: 2px solid var(--accent); outline-offset: 2px; }
