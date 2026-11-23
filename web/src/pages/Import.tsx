@@ -5,25 +5,32 @@ import { loadHufRates } from '../lib/fx'
 import { learnedCategories, suggestTransferPairs, withHashes } from '../lib/importLogic'
 import { detectPdf, detectTable, guessMapping, headerSignature, PROVIDER_LABEL, type Provider } from '../lib/parsers/detect'
 import { parseGeneric, type DateFormat, type MappingConfig } from '../lib/parsers/generic'
-import { parseLightyear } from '../lib/parsers/lightyear'
+import { netDeposits, parseLightyear, parseLightyearPdf, type LightyearRow } from '../lib/parsers/lightyear'
 import { parseOtp } from '../lib/parsers/otp'
 import { parseRevolut } from '../lib/parsers/revolut'
+import { revolutPdfToRows } from '../lib/parsers/revolutPdf'
 import type { ParseResult, ParsedSection } from '../lib/parsers/types'
-import { readPdfLines, readTable } from '../lib/readFile'
+import { fileKind, readPdfLines, readTable, readText } from '../lib/readFile'
 import { accountBalances } from '../lib/stats'
 import { fetchAll, must, supabase } from '../lib/supabase'
 
-interface Detected { provider: Provider; result?: ParseResult; table?: unknown[][] }
+interface LightyearData { rows: LightyearRow[]; warnings: string[]; valuation?: { date: string; value: number } }
+interface Detected { provider: Provider; result?: ParseResult; table?: unknown[][]; lightyear?: LightyearData }
 
 async function analyse(file: File): Promise<Detected> {
-  if (/\.pdf$/i.test(file.name)) {
+  const kind = await fileKind(file)
+  if (kind === 'pdf') {
     const lines = await readPdfLines(file)
-    if (!detectPdf(lines)) throw new Error('Ezt a PDF-et nem ismerem fel. PDF-ből OTP kivonatot tudok beolvasni; más banknál tölts fel CSV vagy Excel exportot.')
-    return { provider: 'otp', result: parseOtp(lines) }
+    const provider = detectPdf(lines)
+    if (provider === 'otp') return { provider, result: parseOtp(lines) }
+    if (provider === 'revolut') return { provider, result: parseRevolut(revolutPdfToRows(lines)) }
+    if (provider === 'lightyear') return { provider, lightyear: parseLightyearPdf(lines) }
+    throw new Error('Ezt a PDF-et nem ismerem fel. PDF-ből OTP, Revolut és Lightyear kivonatot tudok beolvasni; más banknál tölts fel CSV vagy Excel exportot.')
   }
   const table = await readTable(file)
   const provider = detectTable(table)
   if (provider === 'revolut') return { provider, result: parseRevolut(table) }
+  if (provider === 'lightyear') return { provider, lightyear: parseLightyear(await readText(file)) }
   return { provider, table }
 }
 
@@ -52,13 +59,13 @@ export default function Import() {
       <h1>Import</h1>
       <div className="card">
         <label>Kivonat (OTP PDF, Revolut Excel, Lightyear CSV vagy bármilyen CSV / Excel)
-          <input key={file ? 'f' : 'empty'} type="file" accept=".pdf,.csv,.xlsx,.xls" onChange={e => choose(e.target.files?.[0] ?? null)} />
+          <input key={file ? 'f' : 'empty'} type="file" onChange={e => choose(e.target.files?.[0] ?? null)} />
         </label>
         {busy && <p className="muted">Feldolgozás…</p>}
         {detected && <p>Felismerve: <b>{PROVIDER_LABEL[detected.provider]}</b></p>}
         {error && <p className="error">{error}</p>}
       </div>
-      {file && detected?.provider === 'lightyear' && <LightyearImport file={file} />}
+      {detected?.lightyear && <LightyearImport key={file?.name} data={detected.lightyear} done={reset} />}
       {detected?.provider === 'generic' && detected.table && <GenericMapping table={detected.table} onParsed={setResult} />}
       {file && result && <BankImport key={file.name + result.sections.length} result={result} fileName={file.name} done={reset} />}
       <TransferSuggestions />
@@ -248,31 +255,52 @@ function GenericMapping({ table, onParsed }: { table: unknown[][]; onParsed: (r:
   )
 }
 
-function LightyearImport({ file }: { file: File }) {
+function LightyearImport({ data, done }: { data: LightyearData; done: () => void }) {
   const { assets, reload } = useData()
   const ly = assets.filter(a => a.source === 'lightyear')
   const [target, setTarget] = useState(ly[0]?.id ?? 'new')
   const [msg, setMsg] = useState<string[] | null>(null)
+  const [busy, setBusy] = useState(false)
 
   async function run() {
-    const { rows, warnings } = parseLightyear(await file.text())
-    if (!rows.length) return setMsg(warnings.length ? warnings : ['Nincs importálható sor.'])
-    let assetId = target
-    if (assetId === 'new')
-      assetId = (must(await supabase.from('assets').insert({ name: 'Lightyear', type: 'stock_etf', source: 'lightyear' }).select().single()) as { id: string }).id
-    const res = must(await supabase.from('investment_transactions')
-      .upsert(rows.map(r => ({ ...r, asset_id: assetId })), { onConflict: 'asset_id,reference,currency', ignoreDuplicates: true }).select('id')) as unknown[]
-    setMsg([...warnings, `${res.length} új tétel, ${rows.length - res.length} duplikátum kihagyva. A pozíciók a Befektetések oldalon láthatók.`])
-    await reload()
+    setBusy(true)
+    try {
+      let assetId = target
+      if (assetId === 'new')
+        assetId = (must(await supabase.from('assets').insert({ name: 'Lightyear', type: 'stock_etf', source: 'lightyear' }).select().single()) as { id: string }).id
+      const res = data.rows.length ? must(await supabase.from('investment_transactions')
+        .upsert(data.rows.map(r => ({ ...r, asset_id: assetId })), { onConflict: 'asset_id,reference,currency', ignoreDuplicates: true }).select('id')) as unknown[] : []
+      const lines = [...data.warnings, `${res.length} új tétel, ${data.rows.length - res.length} duplikátum kihagyva.`]
+      if (data.valuation) {
+        const all = must(await supabase.from('investment_transactions').select('*').eq('asset_id', assetId)) as LightyearRow[]
+        must(await supabase.from('asset_valuations').upsert({ asset_id: assetId, date: data.valuation.date, value: data.valuation.value,
+          invested: netDeposits(all).huf }, { onConflict: 'asset_id,date' }))
+        lines.push(`Portfólió értéke ${data.valuation.date}-n: ${huf(data.valuation.value)} – rögzítve.`)
+      }
+      setMsg(lines)
+      await reload()
+    } catch (e) { setMsg([`Hiba: ${(e as Error).message}`]) }
+    setBusy(false)
   }
 
+  if (msg) return (
+    <div className="card">
+      <h2>Import kész</h2>
+      {msg.map((m, i) => <p key={i} className={m.startsWith('Hiba') ? 'error' : ''}>{m}</p>)}
+      <button onClick={done}>Rendben</button>
+    </div>
+  )
   return (
-    <div className="card row">
-      <label>Lightyear portfólió<select value={target} onChange={e => setTarget(e.target.value)}>
-        <option value="new">Új: Lightyear</option>{ly.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-      </select></label>
-      <button className="primary" onClick={run}>Importálás</button>
-      {msg?.map((m, i) => <p key={i}>{m}</p>)}
+    <div className="card">
+      <h2>Előnézet</h2>
+      {data.warnings.map((w, i) => <p key={i} className="warn small">⚠ {w}</p>)}
+      <p>{data.rows.length} befektetési tétel{data.valuation && <>, portfólió értéke: <b>{huf(data.valuation.value)}</b> ({data.valuation.date})</>}</p>
+      <div className="row">
+        {ly.length > 0 && <label>Portfólió<select value={target} onChange={e => setTarget(e.target.value)}>
+          <option value="new">Új: Lightyear</option>{ly.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select></label>}
+        <button className="primary" disabled={busy || (!data.rows.length && !data.valuation)} onClick={run}>{busy ? 'Importálás…' : 'Importálás'}</button>
+      </div>
     </div>
   )
 }

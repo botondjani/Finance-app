@@ -11,13 +11,25 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
 }
 
 export function detectPdf(lines: PdfLine[]): Provider | null {
-  const text = lines.slice(0, 60).map(l => l.items.map(i => i.str).join(' ')).join('\n')
-  return /OTP BANK|OTPVHUHB/i.test(text) ? 'otp' : null
+  const text = lines.slice(0, 80).map(l => l.items.map(i => i.str).join(' ')).join('\n')
+  if (/Lightyear Statement|Lightyear Europe AS/i.test(text)) return 'lightyear'
+  if (/Revolut Bank UAB|Current Accounts Summaries/i.test(text)) return 'revolut'
+  if (/OTP BANK|OTPVHUHB/i.test(text)) return 'otp'
+  return null
+}
+
+/** File kind from the first bytes – names/extensions are unreliable on mobile. */
+export function sniffKind(head: Uint8Array): 'pdf' | 'xlsx' | 'xls' | 'text' {
+  const s = String.fromCharCode(...head.slice(0, 4))
+  if (s === '%PDF') return 'pdf'
+  if (s === 'PK\u0003\u0004') return 'xlsx'
+  if (head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0) return 'xls'
+  return 'text'
 }
 
 export function detectTable(rows: unknown[][]): Provider {
   const first = (rows[0] ?? []).map(c => String(c ?? '').trim())
-  if (['Date', 'Reference', 'Ticker', 'Type'].every(h => first.includes(h))) return 'lightyear'
+  if (['Date', 'Reference', 'Ticker', 'Type'].every(h => first.some(f => f.replace(/^\uFEFF/, '') === h))) return 'lightyear'
   if (rows.some(r => r?.[0] === 'Current Accounts Transaction Statements')) return 'revolut'
   return 'generic'
 }

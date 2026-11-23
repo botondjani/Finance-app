@@ -106,7 +106,7 @@ describe('Lightyear', () => {
     const { rows, warnings } = parseLightyear(csv)
     expect(warnings).toEqual([])
     expect(rows).toHaveLength(4)
-    expect(rows[0]).toMatchObject({ reference: 'OR-3', executed_at: '2026-01-03T10:00:00Z', quantity: 1 })
+    expect(rows[0]).toMatchObject({ reference: '2026-01-03|Sell|AAA|USD|1|120.00', executed_at: '2026-01-03T10:00:00Z', quantity: 1 })
     expect(positionsFrom(rows)).toEqual([{ ticker: 'AAA', isin: 'US0000000001', currency: 'USD', quantity: 1, cost: 99.5 }])
     expect(netDeposits(rows).huf).toBe(100000)
   })
