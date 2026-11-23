@@ -21,12 +21,15 @@ Egyfelhasználós személyes pénzügyi app.
 - Speciális „Befektetés” kategória: bankszámláról befektetésre utalt összeg nem számít kiadásnak, nem terheli a budgetet, a dashboardon megtakarításként jelenik meg.
 
 ## Import
-- Forrás: a bankok táblázatos exportja (CSV/Excel), nem PDF.
-- Előre beállított formátum: OTP, Revolut.
+- Előre beállított formátumok:
+  - OTP: PDF számlakivonat (nyitó/záró egyenleggel ellenőrizve).
+  - Revolut: consolidated statement Excel (.xlsx); devizás tételeknél a Revolut által megadott HUF összeg használatos.
+  - Lightyear: account statement CSV (Reference mező alapján duplikátumszűrés).
+- Bármilyen más CSV/Excel: oszlop-hozzárendelés (dátum, összeg, leírás, opcionálisan deviza), bankonként elmentve. Ismeretlen PDF nem támogatott.
 - Revolut: minden devizazseb (HUF, EUR, USD, ...) egy-egy számla; zsebek közti váltás = átvezetés.
 - Ismert minták: Revolut „Top-up by *<OTP kártya utolsó 4 jegye>” = OTP → Revolut átvezetés; „Lightyear” tétel = befizetés a Lightyearre („Befektetés” kategória).
 - Általános CSV: oszlop-hozzárendelés (dátum, összeg, leírás, ...).
-- Revolut deviza tételek: HUF-ra váltás importkor napi árfolyammal (ECB / Frankfurter API); eredeti összeg és deviza megőrizve.
+- Deviza tételek: HUF-ra váltás importkor (Revolutnál a kivonat HUF összege, egyébként napi árfolyam, ECB / Frankfurter API); eredeti összeg és deviza megőrizve.
 - Duplikátum automatikus kiszűrése (dátum + összeg + leírás + számla), összesítőben jelezve.
 - Auto-kategorizálás korábbi tételekből tanulva (azonos partner → azonos kategória).
 - Átvezetés automatikus párosítása: azonos összeg ±2 napon belül két saját számla között → javaslat, felhasználói jóváhagyással.
@@ -68,6 +71,5 @@ Egyfelhasználós személyes pénzügyi app.
 - Lightyear import pozíciói egyeznek a Lightyear felületén látottakkal (darabszám, befektetett tőke).
 - Dashboard számai egyeznek egy kézi ellenőrzéssel.
 
-## Nyitott pont
-- CSV/Excel minta-exportok szükségesek: OTP számlatörténet, Revolut statement, Lightyear (az importerek ezek alapján készülnek).
+## Adatkezelés
 - Valós kivonatok nem kerülnek a repóba; tesztekhez kitalált adatok a valós formátumban.
