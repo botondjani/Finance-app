@@ -38,33 +38,33 @@ export default function Budget() {
         <label>Hónap<input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} /></label>
         <span className="muted">Keretes kategóriák: {huf(totalSpent)} / {huf(totalBudget)}</span>
       </div>
-      <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Kategória</th><th className="num">Alap keret</th><th className="num">Ebben a hónapban</th>
-            <th className="num">Elköltve</th><th style={{ width: '25%' }}>Felhasználás</th></tr></thead>
-          <tbody>
-            {rows.map(({ c, limit, s }) => {
-              const def = budgets.find(b => b.category_id === c.id && b.month === null)
-              const ovr = budgets.find(b => b.category_id === c.id && b.month === monthStart(month))
-              const pct = limit ? (s / Number(limit)) * 100 : 0
-              return (
-                <tr key={c.id + month}>
-                  <td>{c.name}</td>
-                  <td className="num"><input type="number" min={0} style={{ width: 110 }} defaultValue={def?.amount ?? ''} placeholder="—"
-                    onBlur={e => e.target.value !== String(def?.amount ?? '') && save(c.id, null, e.target.value)} /></td>
-                  <td className="num"><input type="number" min={0} style={{ width: 110 }} defaultValue={ovr?.amount ?? ''} placeholder="alap"
-                    onBlur={e => e.target.value !== String(ovr?.amount ?? '') && save(c.id, monthStart(month), e.target.value)} /></td>
-                  <td className={`num ${limit !== null && s > Number(limit) ? 'neg' : ''}`}>{huf(s)}</td>
-                  <td>{limit !== null && <>
-                    <div className={`bar ${pct > 100 ? 'over' : ''}`}><div style={{ width: `${Math.min(100, pct)}%` }} /></div>
-                    <span className={`small ${pct > 100 ? 'neg' : 'muted'}`}>
-                      {pct > 100 ? `Túllépés: ${huf(s - Number(limit))}` : `Maradt: ${huf(Number(limit) - s)}`}</span>
-                  </>}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      <div className="card list">
+        {rows.map(({ c, limit, s }) => {
+          const def = budgets.find(b => b.category_id === c.id && b.month === null)
+          const ovr = budgets.find(b => b.category_id === c.id && b.month === monthStart(month))
+          const pct = limit ? (s / Number(limit)) * 100 : 0
+          return (
+            <div key={c.id + month} className="list-item">
+              <div className="line">
+                <span className="title">{c.name}</span>
+                <span className={`amount ${limit !== null && s > Number(limit) ? 'neg' : ''}`}>
+                  {huf(s)}{limit !== null && <span className="muted"> / {huf(Number(limit))}</span>}
+                </span>
+              </div>
+              {limit !== null && <>
+                <div className={`bar ${pct > 100 ? 'over' : ''}`}><div style={{ width: `${Math.min(100, pct)}%` }} /></div>
+                <span className={`small ${pct > 100 ? 'neg' : 'muted'}`}>
+                  {pct > 100 ? `Túllépés: ${huf(s - Number(limit))}` : `Maradt: ${huf(Number(limit) - s)}`}</span>
+              </>}
+              <div className="inline-inputs small">
+                <label>Alap keret<input type="number" inputMode="numeric" min={0} defaultValue={def?.amount ?? ''} placeholder="—"
+                  onBlur={e => e.target.value !== String(def?.amount ?? '') && save(c.id, null, e.target.value)} /></label>
+                <label>Csak ebben a hónapban<input type="number" inputMode="numeric" min={0} defaultValue={ovr?.amount ?? ''} placeholder="alap"
+                  onBlur={e => e.target.value !== String(ovr?.amount ?? '') && save(c.id, monthStart(month), e.target.value)} /></label>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </>
   )

@@ -6,14 +6,17 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [signup, setSignup] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
-    const { error } = signup
-      ? await supabase.auth.signUp({ email, password })
+    setError(null); setInfo(null)
+    const { data, error } = signup
+      ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } })
       : await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(signup && /Database error/i.test(error.message) ? 'A regisztráció le van zárva.' : error.message)
+    if (error) setError(signup && /Database error/i.test(error.message) ? 'A regisztráció le van zárva.'
+      : /Email not confirmed/i.test(error.message) ? 'Előbb erősítsd meg az email címed (nézd meg a postafiókod).' : error.message)
+    else if (signup && !data.session) { setInfo('Elküldtük a megerősítő emailt. Kattints a linkre, utána lépj be.'); setSignup(false) }
   }
 
   return (
@@ -24,6 +27,7 @@ export default function Login() {
         <label>Jelszó<input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8}
           autoComplete={signup ? 'new-password' : 'current-password'} /></label>
         {error && <p className="error">{error}</p>}
+        {info && <p>{info}</p>}
         <button className="primary">{signup ? 'Regisztráció' : 'Belépés'}</button>
         <button type="button" className="link" onClick={() => setSignup(!signup)}>
           {signup ? 'Van már fiókom' : 'Első indítás: fiók létrehozása'}

@@ -30,22 +30,22 @@ export default function Categories() {
       <h1>Kategóriák</h1>
       <p className="muted small">A „Befektetés” típusú kategóriába tett kiadás nem számít költésnek, hanem megtakarításnak.</p>
       {error && <p className="error">{error}</p>}
-      <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Név</th><th>Típus</th><th className="num">Tételek</th><th /></tr></thead>
-          <tbody>
-            {categories.map(c => (
-              <tr key={c.id}>
-                <td><input defaultValue={c.name} onBlur={e => e.target.value !== c.name && update(c, { name: e.target.value })} /></td>
-                <td><select value={c.kind} onChange={e => update(c, { kind: e.target.value as CategoryKind })}>
-                  {Object.entries(CATEGORY_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select></td>
-                <td className="num">{txs.filter(t => t.category_id === c.id).length}</td>
-                <td><button className="link danger" onClick={() => remove(c)}>Törlés</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="card list">
+        {categories.map(c => (
+          <div key={c.id} className="list-item">
+            <div className="inline-inputs">
+              <input defaultValue={c.name} aria-label="Név" style={{ flex: '2 1 160px' }}
+                onBlur={e => e.target.value !== c.name && update(c, { name: e.target.value })} />
+              <select value={c.kind} aria-label="Típus" style={{ flex: '1 1 110px', width: 'auto' }} onChange={e => update(c, { kind: e.target.value as CategoryKind })}>
+                {Object.entries(CATEGORY_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="line small muted">
+              <span>{txs.filter(t => t.category_id === c.id).length} tétel</span>
+              <button className="link danger" onClick={() => remove(c)}>Törlés</button>
+            </div>
+          </div>
+        ))}
       </div>
       <div className="card row">
         <label>Új kategória<input value={name} onChange={e => setName(e.target.value)} /></label>

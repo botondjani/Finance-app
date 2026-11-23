@@ -2,7 +2,9 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // GitHub Pages serves the app from /Finance-app/
+  base: command === 'build' ? '/Finance-app/' : '/',
   plugins: [
     react(),
     VitePWA({
@@ -15,4 +17,4 @@ export default defineConfig({
       workbox: { maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 },
     }),
   ],
-})
+}))

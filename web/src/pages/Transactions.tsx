@@ -41,7 +41,11 @@ export default function Transactions() {
   return (
     <>
       <h1>Tranzakciók</h1>
-      <div className="card row">
+      <div className="card">
+        <input type="search" placeholder="Keresés…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} style={{ width: '100%' }} />
+        <details style={{ marginTop: 8 }}>
+        <summary className="small muted">Szűrők</summary>
+        <div className="row" style={{ marginTop: 8 }}>
         <label>Ettől<input type="date" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></label>
         <label>Eddig<input type="date" value={f.to} onChange={e => setF({ ...f, to: e.target.value })} /></label>
         <label>Számla<select value={f.account} onChange={e => setF({ ...f, account: e.target.value })}>
@@ -56,42 +60,39 @@ export default function Transactions() {
         <label>Címke<select value={f.tag} onChange={e => setF({ ...f, tag: e.target.value })}>
           <option value="">Mind</option>{allTags.map(t => <option key={t} value={t}>#{t}</option>)}
         </select></label>
-        <label>Keresés<input value={f.q} onChange={e => setF({ ...f, q: e.target.value })} /></label>
-        <label style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <label className="check">
           <input type="checkbox" checked={f.transfers} onChange={e => setF({ ...f, transfers: e.target.checked })} /> átvezetések
         </label>
+        </div>
+        </details>
       </div>
 
       <NewTx />
 
       <p className="muted small">{filtered.length} tétel, összesen <b className={total < 0 ? 'neg' : 'pos'}>{huf(total)}</b></p>
-      <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Dátum</th><th>Leírás</th><th>Számla</th><th>Kategória</th><th className="num">Összeg</th><th /></tr></thead>
-          <tbody>
-            {filtered.slice(0, limit).map(t => editing === t.id
-              ? <EditRow key={t.id} t={t} done={() => setEditing(null)} />
-              : (
-                <tr key={t.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{t.date}</td>
-                  <td>
-                    <div title={t.description}>{t.counterparty || t.description}</div>
-                    {t.tags.map(g => <span key={g} className="tag">#{g}</span>)}
-                    {t.note && <span className="muted small">{t.note}</span>}
-                  </td>
-                  <td className="small">{accMap.get(t.account_id)?.name}</td>
-                  <td>{t.is_transfer
-                    ? <span className="muted small">Átvezetés{t.transfer_peer_id ? ' ↔' : ''}</span>
-                    : <CategorySelect value={t.category_id} onChange={id => setCategory(t, id)} />}</td>
-                  <td className={`num ${t.amount < 0 ? 'neg' : 'pos'}`}>
-                    {huf(t.amount)}
-                    {t.orig_currency && <div className="muted small">{t.orig_amount} {t.orig_currency}</div>}
-                  </td>
-                  <td><button className="link" onClick={() => setEditing(t.id)}>Szerk.</button></td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+      <div className="card list">
+        {filtered.slice(0, limit).map(t => editing === t.id
+          ? <EditRow key={t.id} t={t} done={() => setEditing(null)} />
+          : (
+            <div key={t.id} className="list-item">
+              <div className="line">
+                <span className="title" title={t.description}>{t.counterparty || t.description}</span>
+                <span className={`amount ${t.amount < 0 ? 'neg' : 'pos'}`}>{huf(t.amount)}</span>
+              </div>
+              <div className="line small muted">
+                <span>{t.date} · {accMap.get(t.account_id)?.name}
+                  {t.orig_currency && ` · ${t.orig_amount} ${t.orig_currency}`}</span>
+                <button className="link" onClick={() => setEditing(t.id)}>Szerk.</button>
+              </div>
+              {(t.tags.length > 0 || t.note) && <div>
+                {t.tags.map(g => <span key={g} className="tag">#{g}</span>)}
+                {t.note && <span className="muted small">{t.note}</span>}
+              </div>}
+              {t.is_transfer
+                ? <span className="muted small">Átvezetés{t.transfer_peer_id ? ' ↔ párosítva' : ''}</span>
+                : <CategorySelect value={t.category_id} onChange={id => setCategory(t, id)} />}
+            </div>
+          ))}
         {filtered.length > limit && <button onClick={() => setLimit(limit + PAGE)}>Több ({filtered.length - limit})</button>}
       </div>
     </>
@@ -162,7 +163,7 @@ function EditRow({ t, done }: { t: Tx; done: () => void }) {
   }
 
   return (
-    <tr><td colSpan={6}>
+    <div className="list-item">
       <div className="row">
         <label>Dátum<input type="date" value={v.date} onChange={e => setV({ ...v, date: e.target.value })} /></label>
         <label>Számla<select value={v.account_id} onChange={e => setV({ ...v, account_id: e.target.value })}>
@@ -171,7 +172,7 @@ function EditRow({ t, done }: { t: Tx; done: () => void }) {
         <label style={{ flex: 1 }}>Leírás<input value={v.description} onChange={e => setV({ ...v, description: e.target.value })} /></label>
         <label>Címkék<input value={v.tags} onChange={e => setV({ ...v, tags: e.target.value })} /></label>
         <label>Megjegyzés<input value={v.note} onChange={e => setV({ ...v, note: e.target.value })} /></label>
-        <label style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <label className="check">
           <input type="checkbox" checked={v.is_transfer} onChange={e => setV({ ...v, is_transfer: e.target.checked })} /> átvezetés
         </label>
         {v.is_transfer && (
@@ -186,6 +187,6 @@ function EditRow({ t, done }: { t: Tx; done: () => void }) {
         <button onClick={done}>Mégse</button>
         <button className="danger" onClick={remove}>Törlés</button>
       </div>
-    </td></tr>
+    </div>
   )
 }

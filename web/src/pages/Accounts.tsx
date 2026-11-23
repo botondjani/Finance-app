@@ -31,29 +31,30 @@ export default function Accounts() {
   return (
     <>
       <h1>Számlák</h1>
-      <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Név</th><th>Típus</th><th className="num">Nyitóegyenleg</th><th className="num">Egyenleg</th><th /></tr></thead>
-          <tbody>
-            {accounts.map(a => (
-              <tr key={a.id} className={a.archived ? 'muted' : ''}>
-                <td><input defaultValue={a.name} onBlur={e => e.target.value !== a.name && update(a, { name: e.target.value })} /></td>
-                <td>
-                  <select value={a.kind} onChange={e => update(a, { kind: e.target.value as AccountKind })}>
-                    {Object.entries(ACCOUNT_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </td>
-                <td className="num"><input type="number" step="0.01" defaultValue={a.opening_balance} style={{ width: 130 }}
-                  onBlur={e => Number(e.target.value) !== Number(a.opening_balance) && update(a, { opening_balance: Number(e.target.value) })} /></td>
-                <td className="num">{huf(balances.get(a.id) ?? 0)}</td>
-                <td>
-                  <button className="link" onClick={() => update(a, { archived: !a.archived })}>{a.archived ? 'Visszaállít' : 'Archivál'}</button>
-                  <button className="link danger" onClick={() => remove(a)}>Törlés</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="card list">
+        {accounts.map(a => (
+          <div key={a.id} className={`list-item ${a.archived ? 'muted' : ''}`}>
+            <div className="line">
+              <span className="title">{a.name}{a.archived && ' (archivált)'}</span>
+              <span className="amount">{huf(balances.get(a.id) ?? 0)}</span>
+            </div>
+            <details>
+              <summary className="small muted">Szerkesztés</summary>
+              <div className="inline-inputs small" style={{ marginTop: 8 }}>
+                <label>Név<input defaultValue={a.name} onBlur={e => e.target.value !== a.name && update(a, { name: e.target.value })} /></label>
+                <label>Típus<select value={a.kind} onChange={e => update(a, { kind: e.target.value as AccountKind })}>
+                  {Object.entries(ACCOUNT_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select></label>
+                <label>Nyitóegyenleg<input type="number" step="0.01" defaultValue={a.opening_balance}
+                  onBlur={e => Number(e.target.value) !== Number(a.opening_balance) && update(a, { opening_balance: Number(e.target.value) })} /></label>
+              </div>
+              <div className="row" style={{ marginTop: 8 }}>
+                <button onClick={() => update(a, { archived: !a.archived })}>{a.archived ? 'Visszaállít' : 'Archivál'}</button>
+                <button className="danger" onClick={() => remove(a)}>Törlés</button>
+              </div>
+            </details>
+          </div>
+        ))}
       </div>
       <div className="card">
         <h2>Új számla</h2>

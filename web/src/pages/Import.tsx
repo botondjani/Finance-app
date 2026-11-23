@@ -283,20 +283,24 @@ function TransferSuggestions() {
     <div className="card">
       <h2>Átvezetés-javaslatok ({pairs.length})</h2>
       <p className="muted small">Azonos összeg két saját számla között, ±2 napon belül. Jóváhagyás után nem számít bevételnek/kiadásnak.</p>
-      <div className="table-wrap"><table><tbody>
+      <div className="list">
         {pairs.map(([a, b]) => {
           const ta = byId.get(a.id)!, tb = byId.get(b.id)!
           return (
-            <tr key={a.id + b.id}>
-              <td>{ta.date} <b>{accMap.get(ta.account_id)?.name}</b><div className="small muted">{ta.description}</div></td>
-              <td>→ {tb.date} <b>{accMap.get(tb.account_id)?.name}</b><div className="small muted">{tb.description}</div></td>
-              <td className="num">{huf(tb.amount)}</td>
-              <td><button onClick={() => approve([[a.id, b.id]])}>Jóváhagy</button>
-                <button className="link" onClick={() => dismiss(a.id, b.id)}>Nem az</button></td>
-            </tr>
+            <div key={a.id + b.id} className="list-item">
+              <div className="line">
+                <span className="title">{accMap.get(ta.account_id)?.name} → {accMap.get(tb.account_id)?.name}</span>
+                <span className="amount">{huf(tb.amount)}</span>
+              </div>
+              <div className="small muted">{ta.date}: {ta.description}<br />{tb.date}: {tb.description}</div>
+              <div className="row">
+                <button onClick={() => approve([[a.id, b.id]])}>Jóváhagy</button>
+                <button className="link" onClick={() => dismiss(a.id, b.id)}>Nem az</button>
+              </div>
+            </div>
           )
         })}
-      </tbody></table></div>
+      </div>
       {pairs.length > 1 && <button className="primary" onClick={() => approve(pairs.map(([a, b]) => [a.id, b.id]))}>Mind jóváhagy</button>}
     </div>
   )

@@ -54,3 +54,44 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .bar.over > div { background: var(--bad); }
 .login { max-width: 360px; margin: 10vh auto; }
 .login form { display: flex; flex-direction: column; gap: 12px; }
+
+/* ---------- Lists (used instead of wide tables, work on every width) ---------- */
+.list { display: flex; flex-direction: column; }
+.list-item { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.list-item:last-child { border-bottom: none; }
+.list-item .line { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.list-item .title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.list-item .amount { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 500; }
+.list-item select { max-width: 60%; }
+
+/* ---------- Mobile tab bar & sheet ---------- */
+.tabbar { display: none; }
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 30; display: flex; align-items: flex-end; }
+.sheet { background: var(--card); width: 100%; border-radius: 16px 16px 0 0; padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; }
+.sheet a, .sheet button { padding: 14px 4px; border-bottom: 1px solid var(--border); color: var(--text); text-decoration: none; text-align: left; font-size: 1rem; }
+.sheet a.active { font-weight: 600; color: var(--accent); }
+
+@media (max-width: 760px) {
+  .topbar { display: none; }
+  main { padding: 12px 16px calc(80px + env(safe-area-inset-bottom)); }
+  .tabbar { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; background: var(--card);
+    border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px;
+    font-size: .7rem; color: var(--muted); text-decoration: none; border: none; background: none; border-radius: 0; }
+  .tabbar a.active, .tabbar button.active { color: var(--accent); }
+  /* iOS zooms into inputs below 16px */
+  input, select, textarea, button { font-size: 16px; min-height: 40px; }
+  button.link { min-height: 0; }
+  .row > label, .row > input, .row > select { flex: 1 1 140px; }
+  .row > label input, .row > label select { width: 100%; }
+  .kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi .value { font-size: 1.1rem; }
+  .card { padding: 12px; border-radius: 12px; }
+  h1 { font-size: 1.25rem; }
+}
+input[type=checkbox] { width: auto !important; min-height: 0 !important; }
+.check { flex-direction: row !important; align-items: center; gap: 6px; }
+.inline-inputs { display: flex; gap: 8px; flex-wrap: wrap; }
+.inline-inputs label { flex: 1 1 120px; }
+.inline-inputs input, .inline-inputs select { width: 100%; }
