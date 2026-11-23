@@ -37,4 +37,14 @@ describe('suggestTransferPairs', () => {
     ])
     expect(pairs.map(([a, b]) => [a.id, b.id])).toEqual([['o1', 'r2']])
   })
+
+  it('allows a 2% FX spread only when one side is a foreign-currency row', () => {
+    const pairs = suggestTransferPairs([
+      { id: 'h', account_id: 'huf', date: '2026-06-29', amount: -130067.32 },
+      { id: 'e', account_id: 'eur', date: '2026-06-29', amount: 129330.45, orig_currency: 'EUR' },
+      { id: 'x', account_id: 'otp', date: '2026-06-29', amount: -1000 },
+      { id: 'y', account_id: 'rev', date: '2026-06-29', amount: 990 },
+    ])
+    expect(pairs.map(([a, b]) => [a.id, b.id])).toEqual([['h', 'e']])
+  })
 })

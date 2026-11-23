@@ -27,13 +27,15 @@ export function learnedCategories(history: HistoryTx[]): Map<string, string> {
   return new Map([...best].map(([k, v]) => [k, v.id]))
 }
 
-export interface PairableTx { id: string; account_id: string; date: string; amount: number }
+export interface PairableTx { id: string; account_id: string; date: string; amount: number; orig_currency?: string | null }
 
 const dayDiff = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000
 
 /**
  * Suggests transfer pairs: outflow in one account and an equal inflow in another
- * within ±2 days. Each transaction is used at most once; closest dates win.
+ * within ±2 days. If either side is a foreign-currency row (e.g. Revolut pocket
+ * exchange) the HUF amounts may differ by up to 2% (FX spread).
+ * Each transaction is used at most once; closest dates, then closest amounts win.
  */
 export function suggestTransferPairs(txs: PairableTx[]): [PairableTx, PairableTx][] {
   const candidates: { out: PairableTx; inc: PairableTx; d: number }[] = []
@@ -42,9 +44,11 @@ export function suggestTransferPairs(txs: PairableTx[]): [PairableTx, PairableTx
   for (const out of outs)
     for (const inc of ins) {
       if (out.account_id === inc.account_id) continue
-      if (Math.abs(out.amount + inc.amount) > 0.005) continue
+      const diff = Math.abs(out.amount + inc.amount)
+      const fx = Boolean(out.orig_currency || inc.orig_currency)
+      if (diff > (fx ? 0.02 * inc.amount : 0.005)) continue
       const d = dayDiff(out.date, inc.date)
-      if (d <= 2) candidates.push({ out, inc, d })
+      if (d <= 2) candidates.push({ out, inc, d: d + diff / inc.amount })
     }
   candidates.sort((a, b) => a.d - b.d)
   const used = new Set<string>()
