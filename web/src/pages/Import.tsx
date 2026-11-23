@@ -3,6 +3,7 @@ import { useData } from '../lib/data'
 import { huf } from '../lib/format'
 import { loadHufRates } from '../lib/fx'
 import { learnedCategories, suggestTransferPairs, withHashes } from '../lib/importLogic'
+import { detectPdf, detectTable, guessMapping, headerSignature, PROVIDER_LABEL, type Provider } from '../lib/parsers/detect'
 import { parseGeneric, type DateFormat, type MappingConfig } from '../lib/parsers/generic'
 import { parseLightyear } from '../lib/parsers/lightyear'
 import { parseOtp } from '../lib/parsers/otp'
@@ -12,54 +13,54 @@ import { readPdfLines, readTable } from '../lib/readFile'
 import { accountBalances } from '../lib/stats'
 import { fetchAll, must, supabase } from '../lib/supabase'
 
-type Source = 'otp' | 'revolut' | 'lightyear' | 'generic'
-const SOURCES: Record<Source, string> = { otp: 'OTP kivonat (PDF)', revolut: 'Revolut statement (Excel)', lightyear: 'Lightyear (CSV)', generic: 'Egyéb CSV / Excel' }
+interface Detected { provider: Provider; result?: ParseResult; table?: unknown[][] }
 
-async function guessSource(file: File): Promise<Source> {
-  if (/\.pdf$/i.test(file.name)) return 'otp'
-  if (/\.csv$/i.test(file.name) && /^"?Date"?,"?Reference"?,"?Ticker"?/.test(await file.slice(0, 200).text())) return 'lightyear'
-  if (/consolidated-statement/i.test(file.name)) return 'revolut'
-  return 'generic'
+async function analyse(file: File): Promise<Detected> {
+  if (/\.pdf$/i.test(file.name)) {
+    const lines = await readPdfLines(file)
+    if (!detectPdf(lines)) throw new Error('Ezt a PDF-et nem ismerem fel. PDF-ből OTP kivonatot tudok beolvasni; más banknál tölts fel CSV vagy Excel exportot.')
+    return { provider: 'otp', result: parseOtp(lines) }
+  }
+  const table = await readTable(file)
+  const provider = detectTable(table)
+  if (provider === 'revolut') return { provider, result: parseRevolut(table) }
+  return { provider, table }
 }
 
 export default function Import() {
   const [file, setFile] = useState<File | null>(null)
-  const [source, setSource] = useState<Source>('otp')
+  const [detected, setDetected] = useState<Detected | null>(null)
   const [result, setResult] = useState<ParseResult | null>(null)
-  const [table, setTable] = useState<unknown[][] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function parse(f: File, s: Source) {
-    setError(null); setResult(null); setTable(null); setBusy(true)
+  async function choose(f: File | null) {
+    setFile(f); setDetected(null); setResult(null); setError(null)
+    if (!f) return
+    setBusy(true)
     try {
-      if (s === 'otp') setResult(parseOtp(await readPdfLines(f)))
-      else if (s === 'revolut') setResult(parseRevolut(await readTable(f)))
-      else if (s === 'generic') setTable(await readTable(f))
-    } catch (e) { setError(`A fájl nem olvasható: ${(e as Error).message}`) }
+      const d = await analyse(f)
+      setDetected(d); setResult(d.result ?? null)
+    } catch (e) { setError((e as Error).message) }
     setBusy(false)
   }
 
-  async function choose(f: File | null) {
-    setFile(f)
-    if (!f) return
-    const s = await guessSource(f); setSource(s); parse(f, s)
-  }
+  const reset = () => { setFile(null); setDetected(null); setResult(null) }
 
   return (
     <>
       <h1>Import</h1>
-      <div className="card row">
-        <label>Fájl<input type="file" accept=".pdf,.csv,.xlsx,.xls" onChange={e => choose(e.target.files?.[0] ?? null)} /></label>
-        <label>Formátum<select value={source} onChange={e => { const s = e.target.value as Source; setSource(s); if (file) parse(file, s) }}>
-          {Object.entries(SOURCES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select></label>
+      <div className="card">
+        <label>Kivonat (OTP PDF, Revolut Excel, Lightyear CSV vagy bármilyen CSV / Excel)
+          <input key={file ? 'f' : 'empty'} type="file" accept=".pdf,.csv,.xlsx,.xls" onChange={e => choose(e.target.files?.[0] ?? null)} />
+        </label>
+        {busy && <p className="muted">Feldolgozás…</p>}
+        {detected && <p>Felismerve: <b>{PROVIDER_LABEL[detected.provider]}</b></p>}
+        {error && <p className="error">{error}</p>}
       </div>
-      {busy && <p className="muted">Feldolgozás…</p>}
-      {error && <p className="error">{error}</p>}
-      {file && source === 'lightyear' && <LightyearImport file={file} />}
-      {file && source === 'generic' && table && <GenericMapping table={table} onParsed={setResult} />}
-      {file && result && <BankImport key={file.name + source} result={result} fileName={file.name} done={() => { setResult(null); setFile(null) }} />}
+      {file && detected?.provider === 'lightyear' && <LightyearImport file={file} />}
+      {detected?.provider === 'generic' && detected.table && <GenericMapping table={detected.table} onParsed={setResult} />}
+      {file && result && <BankImport key={file.name + result.sections.length} result={result} fileName={file.name} done={reset} />}
       <TransferSuggestions />
       <RecentBatches />
     </>
@@ -166,13 +167,46 @@ function BankImport({ result, fileName, done }: { result: ParseResult; fileName:
 
 const DATE_FORMATS: DateFormat[] = ['YYYY-MM-DD', 'YYYY.MM.DD', 'DD/MM/YYYY', 'MM/DD/YYYY']
 
+type SavedConfig = MappingConfig & { key: string; signature?: string }
+
 function GenericMapping({ table, onParsed }: { table: unknown[][]; onParsed: (r: ParseResult) => void }) {
-  const [saved, setSaved] = useState<{ id: string; name: string; config: MappingConfig & { key: string } }[]>([])
-  const [cfg, setCfg] = useState<MappingConfig & { key: string }>({ headerRow: 0, date: 0, amount: 1, description: 2, dateFormat: 'YYYY-MM-DD', decimal: ',', key: 'Saját bank' })
+  const [saved, setSaved] = useState<{ id: string; name: string; config: SavedConfig }[]>([])
+  const [cfg, setCfg] = useState<SavedConfig>(() => ({ ...guessMapping(table), key: 'Saját bank' }))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [open, setOpen] = useState(true)
 
-  useEffect(() => { supabase.from('import_mappings').select('*').order('name').then(r => setSaved((r.data ?? []) as typeof saved)) }, [])
+  async function apply(c: SavedConfig = cfg) {
+    setBusy(true); setError(null)
+    try {
+      const needed: { c: string; d: string }[] = []
+      parseGeneric(table, c, c.key, (_a, cur, d) => { needed.push({ c: cur, d }); return 0 })
+      const dates = needed.map(n => n.d).sort()
+      const toHuf = needed.length ? await loadHufRates(needed.map(n => n.c), dates[0], dates[dates.length - 1]) : () => null
+      onParsed(parseGeneric(table, c, c.key, toHuf))
+      if (c.key) must(await supabase.from('import_mappings').upsert(
+        { name: c.key, config: { ...c, signature: headerSignature(table, c.headerRow) } }, { onConflict: 'user_id,name' }))
+      setOpen(false)
+    } catch (e) { setError((e as Error).message) }
+    setBusy(false)
+  }
+
+  // A file from a bank imported before (same header) is processed with its saved settings right away.
+  useEffect(() => {
+    supabase.from('import_mappings').select('*').order('name').then(r => {
+      const list = (r.data ?? []) as typeof saved
+      setSaved(list)
+      const match = list.find(m => m.config.signature && m.config.signature === headerSignature(table, m.config.headerRow))
+      if (match) { setCfg(match.config); apply(match.config) }
+    })
+  }, [table])
+
+  if (!open) return (
+    <div className="card row">
+      <span>Beállítás: <b>{cfg.key}</b></span>
+      <button className="link" onClick={() => setOpen(true)}>Oszlopok módosítása</button>
+    </div>
+  )
 
   const header = (table[cfg.headerRow] ?? []).map((h, i) => `${i + 1}. ${String(h ?? '')}`)
   const col = (k: 'date' | 'amount' | 'description' | 'currency', optional = false) => (
@@ -182,22 +216,10 @@ function GenericMapping({ table, onParsed }: { table: unknown[][]; onParsed: (r:
     </select>
   )
 
-  async function apply() {
-    setBusy(true); setError(null)
-    try {
-      const needed: { c: string; d: string }[] = []
-      parseGeneric(table, cfg, cfg.key, (_a, c, d) => { needed.push({ c, d }); return 0 })
-      const dates = needed.map(n => n.d).sort()
-      const toHuf = needed.length ? await loadHufRates(needed.map(n => n.c), dates[0], dates[dates.length - 1]) : () => null
-      onParsed(parseGeneric(table, cfg, cfg.key, toHuf))
-      if (cfg.key) must(await supabase.from('import_mappings').upsert({ name: cfg.key, config: cfg }, { onConflict: 'user_id,name' }))
-    } catch (e) { setError((e as Error).message) }
-    setBusy(false)
-  }
-
   return (
     <div className="card">
       <h2>Oszlopok hozzárendelése</h2>
+      <p className="muted small">Ezt a formátumot még nem ismerem. Kitöltöttem a legvalószínűbb beállítást – ellenőrizd az előnézettel. A következő ilyen fájlnál már magától megy.</p>
       {saved.length > 0 && (
         <label>Mentett beállítás<select defaultValue="" onChange={e => { const m = saved.find(s => s.id === e.target.value); if (m) setCfg(m.config) }}>
           <option value="">Válassz…</option>{saved.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -214,7 +236,7 @@ function GenericMapping({ table, onParsed }: { table: unknown[][]; onParsed: (r:
         <label>Leírás{col('description')}</label>
         <label>Deviza{col('currency', true)}</label>
         <label>Számla / beállítás neve<input value={cfg.key} onChange={e => setCfg({ ...cfg, key: e.target.value })} /></label>
-        <button className="primary" disabled={busy} onClick={apply}>Előnézet</button>
+        <button className="primary" disabled={busy} onClick={() => apply()}>Előnézet</button>
       </div>
       {error && <p className="error">{error}</p>}
       <div className="table-wrap"><table><tbody>
