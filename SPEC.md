@@ -21,7 +21,10 @@ Egyfelhasználós személyes pénzügyi app.
 - Speciális „Befektetés” kategória: bankszámláról befektetésre utalt összeg nem számít kiadásnak, nem terheli a budgetet, a dashboardon megtakarításként jelenik meg.
 
 ## Import
+- Forrás: a bankok táblázatos exportja (CSV/Excel), nem PDF.
 - Előre beállított formátum: OTP, Revolut.
+- Revolut: minden devizazseb (HUF, EUR, USD, ...) egy-egy számla; zsebek közti váltás = átvezetés.
+- Ismert minták: Revolut „Top-up by *<OTP kártya utolsó 4 jegye>” = OTP → Revolut átvezetés; „Lightyear” tétel = befizetés a Lightyearre („Befektetés” kategória).
 - Általános CSV: oszlop-hozzárendelés (dátum, összeg, leírás, ...).
 - Revolut deviza tételek: HUF-ra váltás importkor napi árfolyammal (ECB / Frankfurter API); eredeti összeg és deviza megőrizve.
 - Duplikátum automatikus kiszűrése (dátum + összeg + leírás + számla), összesítőben jelezve.
@@ -66,4 +69,5 @@ Egyfelhasználós személyes pénzügyi app.
 - Dashboard számai egyeznek egy kézi ellenőrzéssel.
 
 ## Nyitott pont
-- Anonimizált minta-exportok szükségesek: OTP, Revolut, Lightyear (az importerek ezek alapján készülnek).
+- CSV/Excel minta-exportok szükségesek: OTP számlatörténet, Revolut statement, Lightyear (az importerek ezek alapján készülnek).
+- Valós kivonatok nem kerülnek a repóba; tesztekhez kitalált adatok a valós formátumban.
