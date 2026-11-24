@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useData } from '../lib/data'
 import InfoTip from '../components/InfoTip'
 import { addMonths, currentMonth, huf, monthEnd, monthLabel, monthStart } from '../lib/format'
+import { dataAsOf } from '../components/Insights'
 import { budgetFor, expenseByCategory } from '../lib/stats'
 import { must, supabase } from '../lib/supabase'
 
@@ -24,6 +25,8 @@ export default function Budget() {
     await reload()
   }
 
+  const asOf = dataAsOf(txs.map(t => t.date))
+  const pace = month === currentMonth() && asOf.startsWith(month) && +asOf.slice(8) >= 6 ? { day: +asOf.slice(8), days: +monthEnd(month).slice(8) } : null
   let totalBudget = 0, totalSpent = 0
   const rows = expenseCats.map(c => {
     const limit = budgetFor(budgets, c.id, month)
@@ -62,7 +65,8 @@ export default function Budget() {
               {limit !== null && <>
                 <div className={`bar ${pct > 100 ? 'over' : ''}`}><div style={{ width: `${Math.min(100, pct)}%` }} /></div>
                 <span className={`small ${pct > 100 ? 'neg' : 'muted'}`}>
-                  {pct > 100 ? `Túllépés: ${huf(s - Number(limit))}` : `Maradt: ${huf(Number(limit) - s)}`}</span>
+                  {pct > 100 ? `Túllépés: ${huf(s - Number(limit))}` : `Maradt: ${huf(Number(limit) - s)}`}
+                  {pace && pct <= 100 && s / pace.day * pace.days > Number(limit) && <span className="warn"> · ezzel a tempóval kb. {huf(s / pace.day * pace.days)} lesz</span>}</span>
               </>}
               <div className="inline-inputs small">
                 <label>Alap keret<input type="number" inputMode="numeric" min={0} defaultValue={def?.amount ?? ''} placeholder="—"

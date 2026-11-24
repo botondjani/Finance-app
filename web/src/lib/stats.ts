@@ -123,3 +123,40 @@ export function detectRecurring(txs: Tx[]): Recurring[] {
   }
   return out.sort((a, b) => b.amount - a.amount)
 }
+
+export interface CategoryChange { categoryId: string; cur: number; prev: number; diff: number }
+
+/** Biggest per-category spending changes versus the previous month (uncategorized under ""). */
+export function categoryChanges(txs: Tx[], cats: Map<string, Category>, month: string, n = 3): CategoryChange[] {
+  const p = addMonths(month, -1)
+  const cur = new Map(expenseByCategory(txs, cats, monthStart(month), monthEnd(month)))
+  const prev = new Map(expenseByCategory(txs, cats, monthStart(p), monthEnd(p)))
+  return [...new Set([...cur.keys(), ...prev.keys()])]
+    .map(id => ({ categoryId: id, cur: cur.get(id) ?? 0, prev: prev.get(id) ?? 0, diff: (cur.get(id) ?? 0) - (prev.get(id) ?? 0) }))
+    .filter(c => c.diff !== 0)
+    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
+    .slice(0, n)
+}
+
+export interface BudgetAlert { categoryId: string; spent: number; limit: number; projected: number; level: 'over' | 'near' | 'pace' }
+
+/**
+ * Budget warnings for the month containing `asOf` (the date the data is complete up to).
+ * over: limit exceeded · near: >= 80% used · pace: at the current pace the month would exceed the limit
+ * (only from day 6, so a single early purchase does not raise an alarm).
+ */
+export function budgetAlerts(txs: Tx[], cats: Map<string, Category>, budgets: Budget[], asOf: string): BudgetAlert[] {
+  const month = monthKey(asOf)
+  const day = +asOf.slice(8), days = +monthEnd(month).slice(8)
+  const spent = new Map(expenseByCategory(txs, cats, monthStart(month), asOf))
+  const out: BudgetAlert[] = []
+  for (const id of new Set(budgets.map(b => b.category_id))) {
+    const limit = budgetFor(budgets, id, month)
+    if (!limit) continue
+    const s = spent.get(id) ?? 0
+    const projected = s / day * days
+    const level = s > limit ? 'over' : s >= limit * 0.8 ? 'near' : day >= 6 && projected > limit ? 'pace' : null
+    if (level) out.push({ categoryId: id, spent: s, limit: Number(limit), projected, level })
+  }
+  return out.sort((a, b) => b.spent / b.limit - a.spent / a.limit)
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountBalances, budgetFor, goalCurrent, detectRecurring, expenseByCategory, goalProgress, monthSummary, netWorthSeries, portfolioValue } from './stats'
+import { accountBalances, budgetAlerts, budgetFor, categoryChanges, goalCurrent, detectRecurring, expenseByCategory, goalProgress, monthSummary, netWorthSeries, portfolioValue } from './stats'
 import type { Account, Category, Tx } from './types'
 
 const cats = new Map<string, Category>([
@@ -92,5 +92,26 @@ describe('detectRecurring', () => {
     const r = detectRecurring(list)
     expect(r.map(x => [x.counterparty, x.amount, x.months])).toEqual([['netflix', 3000, 4]])
     expect(r[0].nextDate).toBe('2026-12-07')
+  })
+})
+
+describe('categoryChanges', () => {
+  it('ranks categories by absolute change versus the previous month', () => {
+    const list = [tx({ date: '2026-10-10', amount: -10000, category_id: 'food' }), tx({ date: '2026-11-10', amount: -25000, category_id: 'food' }),
+      tx({ date: '2026-10-12', amount: -3000 })]
+    expect(categoryChanges(list, cats, '2026-11')).toEqual([
+      { categoryId: 'food', cur: 25000, prev: 10000, diff: 15000 }, { categoryId: '', cur: 0, prev: 3000, diff: -3000 }])
+  })
+})
+
+describe('budgetAlerts', () => {
+  const b = [{ id: '1', category_id: 'food', month: null, amount: 100000 }]
+  const at = (amount: number, asOf: string) => budgetAlerts([tx({ date: '2026-11-02', amount: -amount, category_id: 'food' })], cats, b, asOf)
+  it('flags over, near and over-pace spending', () => {
+    expect(at(120000, '2026-11-20')[0].level).toBe('over')
+    expect(at(85000, '2026-11-28')[0].level).toBe('near')
+    expect(at(40000, '2026-11-10')[0]).toMatchObject({ level: 'pace', projected: 120000 })
+    expect(at(40000, '2026-11-20')).toEqual([])
+    expect(at(40000, '2026-11-03')).toEqual([])   // too early in the month
   })
 })

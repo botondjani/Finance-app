@@ -6,6 +6,7 @@ import { addMonths, currentMonth, huf, monthEnd, monthLabel, monthStart, todayIs
 import { accountBalances, expenseByCategory, monthSummary, netWorthSeries, portfolioValue } from '../lib/stats'
 import InfoTip from '../components/InfoTip'
 import { GoalList } from './Goals'
+import { BudgetAlerts, MonthReport } from '../components/Insights'
 
 function Kpi({ label, value, prev, invert = false, info }: { label: string; value: number; prev: number; invert?: boolean; info: string }) {
   const d = value - prev
@@ -73,6 +74,7 @@ export default function Dashboard() {
         <button aria-label="Következő hónap" disabled={month >= currentMonth()} onClick={() => setMonth(addMonths(month, 1))}>›</button>
       </div>
       <GettingStarted />
+      {month === currentMonth() && <BudgetAlerts />}
       {uncategorized > 0 && <p className="warn small">{uncategorized} tételnek nincs kategóriája, ezért a kimutatások pontatlanok – <Link to="/categorize">rendezd őket</Link>.</p>}
       <div className="kpis">
         <Kpi label="Bevétel" value={cur.income} prev={prev.income} info="Ami bejött a számláidra ebben a hónapban (a saját számlák közti átvezetés nélkül)." />
@@ -80,6 +82,8 @@ export default function Dashboard() {
         <Kpi label="Megtakarítás" value={cur.savings} prev={prev.savings} info="Bevétel mínusz kiadás. Ha pozitív, többet kerestél, mint amennyit elköltöttél." />
         <Kpi label="Ebből befektetve" value={cur.invested} prev={prev.invested} info="A megtakarításból ennyit utaltál befektetésre (Befektetés kategória, pl. Lightyear)." />
       </div>
+
+      <MonthReport month={month} prevMonth={addMonths(month, -1)} />
 
       <div className="grid">
         <div className="card">
