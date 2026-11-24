@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ruleCategory, suggestCategory } from './autoCategory'
+import { isOwnTransfer as _own, ruleCategory, suggestCategory } from "./autoCategory"
 
 const cat = (cp: string, desc = '', amount = -1000) => ruleCategory(cp, desc, amount)
 
@@ -40,5 +40,19 @@ describe('suggestCategory', () => {
     expect(suggestCategory({ counterparty: 'lidl', description: '', amount: -1 }, new Map([['lidl', 'custom']]), ids)).toBe('custom')
     expect(suggestCategory({ counterparty: 'lidl', description: '', amount: -1 }, new Map(), ids)).toBe('food')
     expect(suggestCategory({ counterparty: 'spotify', description: '', amount: -1 }, new Map(), ids)).toBeNull() // category missing
+  })
+})
+
+describe('extended rules', () => {
+  it('recognises more merchants and does not treat a Hungarian "bolt" as transport', () => {
+    expect(ruleCategory('gelateria peppino', 'Gelateria Peppino', -100)).toBe('Étterem, kávé')
+    expect(ruleCategory('margitsziget parkol', '', -100)).toBe('Közlekedés')
+    expect(ruleCategory('vitateka elelmiszer', '', -100)).toBe('Élelmiszer')
+    expect(ruleCategory('viragert', '', -100)).toBe('Ajándék')
+    expect(ruleCategory('sarki bolt', '', -100)).toBeNull()
+  })
+  it('detects top-ups as own transfers', () => {
+    expect(_own('top-up by *1234', 'Top-up by *1234')).toBe(true)
+    expect(_own('lidl', 'Lidl')).toBe(false)
   })
 })

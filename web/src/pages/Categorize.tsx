@@ -1,39 +1,19 @@
 import { useMemo, useState } from 'react'
 import CategorySelect from '../components/CategorySelect'
 import InfoTip from '../components/InfoTip'
-import { suggestCategory } from '../lib/autoCategory'
-import { useData } from '../lib/data'
+import { updateIds, useData } from '../lib/data'
 import { huf } from '../lib/format'
-import { learnedCategories } from '../lib/importLogic'
-import { must, supabase } from '../lib/supabase'
 import type { Tx } from '../lib/types'
 
 const PAGE = 40
 
-async function updateIds(ids: string[], patch: Partial<Tx>) {
-  for (let i = 0; i < ids.length; i += 200)
-    must(await supabase.from('transactions').update(patch).in('id', ids.slice(i, i + 200)))
-}
-
 export default function Categorize() {
-  const { txs, categories, catMap, reload } = useData()
+  const { txs, categories, catMap, reload, autoCategorized } = useData()
   const [limit, setLimit] = useState(PAGE)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
   const open = useMemo(() => txs.filter(t => !t.category_id && !t.is_transfer), [txs])
-  const suggestions = useMemo(() => {
-    const learned = learnedCategories(txs)
-    const byName = new Map(categories.map(c => [c.name, c.id]))
-    const m = new Map<string, string[]>()
-    for (const t of open) {
-      const c = suggestCategory(t, learned, byName)
-      if (c) m.set(c, [...(m.get(c) ?? []), t.id])
-    }
-    return m
-  }, [open, txs, categories])
-  const suggestedCount = [...suggestions.values()].reduce((s, ids) => s + ids.length, 0)
-
   const groups = useMemo(() => {
     const g = new Map<string, Tx[]>()
     for (const t of open) {
@@ -50,9 +30,12 @@ export default function Categorize() {
     setBusy(false)
   }
 
-  const autoApply = () => run(async () => {
-    for (const [cat, ids] of suggestions) await updateIds(ids, { category_id: cat })
-  }, `${suggestedCount} tétel kategóriába sorolva.`)
+  const other = (name: string) => categories.find(c => c.name === name)?.id
+  const restToOther = () => run(async () => {
+    const out = other('Egyéb kiadás'), inc = other('Egyéb bevétel')
+    if (out) await updateIds(open.filter(t => t.amount < 0).map(t => t.id), { category_id: out })
+    if (inc) await updateIds(open.filter(t => t.amount >= 0).map(t => t.id), { category_id: inc })
+  }, `${open.length} tétel az „Egyéb” kategóriákba sorolva.`)
 
   return (
     <>
@@ -61,24 +44,18 @@ export default function Categorize() {
         Itt látod azokat a tételeket, amiknek még nincs kategóriájuk. Amit itt beállítasz, azt az app megjegyzi:
         a jövőbeli importoknál ugyanaz a partner automatikusan ugyanabba a kategóriába kerül.
       </p>
+      {autoCategorized > 0 && <p className="pos small">✓ {autoCategorized} tételt automatikusan besoroltam.</p>}
       {msg && <p className={msg.startsWith('Hiba') ? 'error' : 'pos'}>{msg}</p>}
 
       {open.length === 0 ? (
         <div className="card"><p>✓ Minden tétel kategóriában van.</p></div>
       ) : (
         <>
-          {suggestedCount > 0 && (
-            <div className="card">
-              <h2>Automatikus besorolás <InfoTip>Ismert kereskedők (pl. Lidl, BKK, Netflix) és a korábbi döntéseid alapján. Utána bármelyik tételt átírhatod a Tranzakciók oldalon.</InfoTip></h2>
-              <p>{suggestedCount} tételre van javaslatom ({open.length} rendezetlenből):</p>
-              <ul className="small">
-                {[...suggestions].sort((a, b) => b[1].length - a[1].length).map(([c, ids]) => (
-                  <li key={c}>{catMap.get(c)?.name}: {ids.length} tétel</li>
-                ))}
-              </ul>
-              <button className="primary" disabled={busy} onClick={autoApply}>{busy ? 'Folyamatban…' : `${suggestedCount} tétel besorolása`}</button>
-            </div>
-          )}
+          <div className="card">
+            <h2>Gyors befejezés <InfoTip>A felismerhető tételeket (ismert boltok, korábbi döntéseid, saját számlák közti feltöltések) az app már magától besorolta. Ami itt maradt, azt nem lehet biztosan felismerni – vagy beállítod partnerenként lent, vagy egy gombbal az „Egyéb” kategóriákba teszed őket.</InfoTip></h2>
+            <p className="small muted">A kiadások az „Egyéb kiadás”, a bejövő tételek az „Egyéb bevétel” kategóriába kerülnek. Később bármelyiket átírhatod.</p>
+            <button disabled={busy} onClick={() => confirm(`Mind a ${open.length} tételt az „Egyéb” kategóriákba teszed?`) && restToOther()}>Maradék {open.length} tétel → Egyéb</button>
+          </div>
 
           <div className="card">
             <h2>Partnerenként ({groups.length} csoport, {open.length} tétel)

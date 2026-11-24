@@ -4,7 +4,7 @@ import InfoTip from '../components/InfoTip'
 import { useData } from '../lib/data'
 import { huf } from '../lib/format'
 import { loadHufRates } from '../lib/fx'
-import { suggestCategory } from '../lib/autoCategory'
+import { isOwnTransfer, suggestCategory } from '../lib/autoCategory'
 import { learnedCategories, suggestTransferPairs, withHashes } from '../lib/importLogic'
 import { detectPdf, detectTable, guessMapping, headerSignature, PROVIDER_LABEL, type Provider } from '../lib/parsers/detect'
 import { parseGeneric, type DateFormat, type MappingConfig } from '../lib/parsers/generic'
@@ -111,7 +111,7 @@ function BankImport({ result, fileName, done }: { result: ParseResult; fileName:
           account_id: accountId, date: r.date, amount: r.amount, description: r.description, counterparty: r.counterparty,
           orig_amount: r.origAmount ?? null, orig_currency: r.origCurrency ?? null, import_hash: r.import_hash,
           import_batch_id: batch.id,
-          category_id: suggestCategory(r, learned, byName),
+          ...(isOwnTransfer(r.counterparty, r.description) ? { is_transfer: true, category_id: null } : { category_id: suggestCategory(r, learned, byName) }),
         }))
         let inserted = 0, categorized = 0
         for (let k = 0; k < rows.length; k += 500) {

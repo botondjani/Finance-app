@@ -136,3 +136,14 @@ ol.steps { padding-left: 20px; margin: 0; display: flex; flex-direction: column;
 
 .alerts { border-left: 4px solid var(--warn); }
 .alerts ul, .report { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 6px; }
+
+h2.section { font-size: 15px; margin: 20px 4px 8px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.budget-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.budget-row .line { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.budget-row .title { font-weight: 600; }
+.budget-row .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar.meter { height: 10px; border-radius: 5px; }
+.bar.meter > div { background: var(--good, #2e9d5b); }
+.bar.meter.near > div { background: var(--warn); }
+.bar.meter.over > div { background: var(--bad); }
+.editor { border-top: 1px dashed var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }

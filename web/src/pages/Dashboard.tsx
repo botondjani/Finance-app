@@ -45,7 +45,7 @@ const axis = { fontSize: 12, stroke: 'var(--muted)' }
 const kFmt = (v: number) => `${Math.round(v / 1000)}e`
 
 export default function Dashboard() {
-  const { txs, accounts, valuations, catMap } = useData()
+  const { txs, accounts, valuations, catMap, autoCategorized } = useData()
   const [month, setMonth] = useState(currentMonth())
   const cur = monthSummary(txs, catMap, month)
   const prev = monthSummary(txs, catMap, addMonths(month, -1))
@@ -75,6 +75,7 @@ export default function Dashboard() {
       </div>
       <GettingStarted />
       {month === currentMonth() && <BudgetAlerts />}
+      {autoCategorized > 0 && <p className="pos small">✓ {autoCategorized} új tételt automatikusan kategóriába soroltam.</p>}
       {uncategorized > 0 && <p className="warn small">{uncategorized} tételnek nincs kategóriája, ezért a kimutatások pontatlanok – <Link to="/categorize">rendezd őket</Link>.</p>}
       <div className="kpis">
         <Kpi label="Bevétel" value={cur.income} prev={prev.income} info="Ami bejött a számláidra ebben a hónapban (a saját számlák közti átvezetés nélkül)." />
