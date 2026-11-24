@@ -94,3 +94,15 @@ describe('sniffKind', () => {
     expect(sniffKind(b('"Date",'))).toBe('text')
   })
 })
+
+import { investedAt as _investedAt } from './lightyear'
+describe('investedAt', () => {
+  const r = (d: string, type: string, amt: number, ccy = 'HUF') => ({ reference: d + type, executed_at: `${d}T00:00:00Z`, ticker: null, isin: null, type, quantity: null, currency: ccy, price: null, gross_amount: amt, fx_rate: null, fee: null, net_amount: amt })
+  const rows = [r('2026-10-05', 'Deposit', 100), r('2026-11-11', 'Deposit', 450000), r('2026-11-15', 'Withdrawal', -50000), r('2026-11-30', 'Deposit', 7)]
+  it('is unknown without an earlier known figure (a statement covers only its period)', () => {
+    expect(_investedAt(rows, null, '2026-11-22')).toBeNull()
+  })
+  it('carries forward the known figure plus later net deposits up to the date', () => {
+    expect(_investedAt(rows, { date: '2026-10-31', invested: 1_000_000 }, '2026-11-22')).toBe(1_400_000)
+  })
+})

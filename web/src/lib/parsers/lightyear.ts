@@ -124,3 +124,13 @@ export function netDeposits(rows: LightyearRow[]): { huf: number; other: Lightye
   }
   return { huf, other }
 }
+
+/**
+ * Invested capital on `date`, carried forward from the latest earlier known figure plus HUF net deposits after it.
+ * A statement only covers its own period, so without an earlier known figure the total is unknown (null).
+ */
+export function investedAt(rows: LightyearRow[], prev: { date: string; invested: number } | null, date: string): number | null {
+  if (!prev) return null
+  const later = rows.filter(r => r.executed_at.slice(0, 10) > prev.date && r.executed_at.slice(0, 10) <= date)
+  return prev.invested + netDeposits(later).huf
+}

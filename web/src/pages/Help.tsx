@@ -14,7 +14,7 @@ const TERMS: [string, string][] = [
   ['Megtakarítási cél', 'Egy összeg, amit egy számlán gyűjtesz. A haladás a számla egyenlege.'],
   ['Befektetési cél', 'Egy összeg, amit a befektetéseiddel érnél el. A haladás egy eszköz vagy a teljes portfólió értéke.'],
   ['Portfólió értéke', 'A befektetéseid legutóbb rögzített értéke. Lightyear PDF kivonatból automatikusan, máshol kézzel adod meg.'],
-  ['Befektetett tőke', 'Mennyi saját pénzt tettél be összesen (befizetések mínusz kivétek).'],
+  ['Befektetett tőke', 'Mennyi saját pénzt tettél be összesen a számlanyitás óta (befizetések mínusz kivétek). Egyszer kell megadnod, utána az importált befizetésekkel továbbvezetem.'],
   ['Eredmény', 'Portfólió értéke mínusz befektetett tőke: ennyit nyertél (vagy vesztettél).'],
   ['Ismétlődő tétel', 'Olyan kiadás, ami nagyjából havonta, hasonló összeggel visszatér (pl. előfizetések).'],
   ['Duplikátum', 'Már korábban importált tétel. Ha ugyanazt a kivonatot (vagy átfedő időszakot) újra feltöltöd, ezeket kihagyom.'],

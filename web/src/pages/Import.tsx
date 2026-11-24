@@ -8,7 +8,7 @@ import { suggestCategory } from '../lib/autoCategory'
 import { learnedCategories, suggestTransferPairs, withHashes } from '../lib/importLogic'
 import { detectPdf, detectTable, guessMapping, headerSignature, PROVIDER_LABEL, type Provider } from '../lib/parsers/detect'
 import { parseGeneric, type DateFormat, type MappingConfig } from '../lib/parsers/generic'
-import { netDeposits, parseLightyear, parseLightyearPdf, type LightyearRow } from '../lib/parsers/lightyear'
+import { investedAt, parseLightyear, parseLightyearPdf, type LightyearRow } from '../lib/parsers/lightyear'
 import { parseOtp } from '../lib/parsers/otp'
 import { parseRevolut } from '../lib/parsers/revolut'
 import { revolutPdfToRows } from '../lib/parsers/revolutPdf'
@@ -266,7 +266,7 @@ function GenericMapping({ table, onParsed }: { table: unknown[][]; onParsed: (r:
 }
 
 function LightyearImport({ data, done }: { data: LightyearData; done: () => void }) {
-  const { assets, reload } = useData()
+  const { assets, valuations, reload } = useData()
   const ly = assets.filter(a => a.source === 'lightyear')
   const [target, setTarget] = useState(ly[0]?.id ?? 'new')
   const [msg, setMsg] = useState<string[] | null>(null)
@@ -283,9 +283,12 @@ function LightyearImport({ data, done }: { data: LightyearData; done: () => void
       const lines = [...data.warnings, `${res.length} új tétel, ${data.rows.length - res.length} duplikátum kihagyva.`]
       if (data.valuation) {
         const all = must(await supabase.from('investment_transactions').select('*').eq('asset_id', assetId)) as LightyearRow[]
-        must(await supabase.from('asset_valuations').upsert({ asset_id: assetId, date: data.valuation.date, value: data.valuation.value,
-          invested: netDeposits(all).huf }, { onConflict: 'asset_id,date' }))
-        lines.push(`Portfólió értéke ${data.valuation.date}-n: ${huf(data.valuation.value)} – rögzítve.`)
+        const date = data.valuation.date
+        const prev = valuations.filter(v => v.asset_id === assetId && v.date < date && v.invested != null).sort((a, b) => b.date.localeCompare(a.date))[0]
+        const invested = investedAt(all, prev ? { date: prev.date, invested: Number(prev.invested) } : null, date)
+        must(await supabase.from('asset_valuations').upsert({ asset_id: assetId, date, value: data.valuation.value, invested }, { onConflict: 'asset_id,date' }))
+        lines.push(`Portfólió értéke ${date}-n: ${huf(data.valuation.value)} – rögzítve.`)
+        if (invested === null) lines.push('A befektetett tőkét (eddig összesen befizetett pénz) add meg egyszer a Befektetések oldalon – a további importoknál már automatikusan továbbvezetem.')
       }
       setMsg(lines)
       await reload()
